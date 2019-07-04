@@ -4,6 +4,8 @@ import os
 import asyncio
 from botocore.exceptions import ParamValidationError
 import boto3
+import dateparser
+import datetime
 from sanic import Sanic, response
 from sanic.exceptions import InvalidUsage
 
@@ -21,14 +23,21 @@ async def health(request):
 
 @app.route('/query', methods=['GET', 'POST'])
 async def query(request):
-    elapsed = 0
     query = request.json or json.loads(request.raw_args['q'])
+    for timeKey in ['startTime', 'endTime']:
+        if isinstance(query.get(timeKey), str):
+            query[timeKey] = int(dateparser.parse(query[timeKey]).timestamp())
+    if not query.get('endTime'):
+        query['endTime'] = int(datetime.datetime.now().timestamp())
+
     try:
         query_id = cloudwatch.start_query(**query)['queryId']
     except ParamValidationError as e:
         raise InvalidUsage(f'Error: {e}')
     except Exception as e:
         raise e
+
+    elapsed = 0
     while True:
         result = cloudwatch.get_query_results(queryId=query_id)
         if result['status'] == 'Complete':
