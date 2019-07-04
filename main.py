@@ -1,10 +1,10 @@
+import json
 import os
 
 import asyncio
 from botocore.exceptions import ParamValidationError
 import boto3
-from sanic import Sanic
-from sanic.response import json
+from sanic import Sanic, response
 from sanic.exceptions import InvalidUsage
 
 app = Sanic()
@@ -16,14 +16,15 @@ TIMEOUT = float(os.environ.get('TIMEOUT', 60.0))
 
 @app.route('/')
 async def health(request):
-    return json({'status': 'ok!'})
+    return response.json({'status': 'ok!'})
 
 
-@app.route('/query', methods=['POST'])
+@app.route('/query', methods=['GET', 'POST'])
 async def query(request):
     elapsed = 0
+    query = request.json or json.loads(request.raw_args['q'])
     try:
-        query_id = cloudwatch.start_query(**request.json)['queryId']
+        query_id = cloudwatch.start_query(**query)['queryId']
     except ParamValidationError as e:
         raise InvalidUsage(f'Error: {e}')
     except Exception as e:
@@ -39,9 +40,9 @@ async def query(request):
                     'friendly_name': col['field']
                 } for col in results[0]]
                 rows = [{col['field']: col['value'] for col in row} for row in results]
-                return json({'columns': cols, 'rows': rows})
+                return response.json({'columns': cols, 'rows': rows})
             else:
-                return json({'columns': [], 'rows': []})
+                return response.json({'columns': [], 'rows': []})
         if elapsed > TIMEOUT:
             raise Exception('timeout')
         await asyncio.sleep(POLL_INTERVAL)
