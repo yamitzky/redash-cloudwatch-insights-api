@@ -29,3 +29,5 @@ docker run -it --rm yamitzky/redash-cloudwatch-insights-api
 First, deploy this API.
 
 Then, create a [URL data source](https://redash.io/help/data-sources/querying/urls) with `https://the-deployed-api-server/query?q=`.
+
+![sample](https://user-images.githubusercontent.com/623449/60710742-57c05a00-9f4e-11e9-9522-8670a4cac0c7.png)
