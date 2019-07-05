@@ -42,16 +42,17 @@ async def query(request):
         result = cloudwatch.get_query_results(queryId=query_id)
         if result['status'] == 'Complete':
             results = result['results']
-            if results:
-                cols = [{
-                    'name': col['field'],
-                    'type': 'datetime' if col['field'] == '@timestamp' else 'string',
-                    'friendly_name': col['field']
-                } for col in results[0]]
-                rows = [{col['field']: col['value'] for col in row} for row in results]
-                return response.json({'columns': cols, 'rows': rows})
-            else:
-                return response.json({'columns': [], 'rows': []})
+            cols = []
+            rows = []
+            for i, row in enumerate(results):
+                if i == 0:  # get columns from 1st row
+                    cols = [{
+                        'name': col['field'],
+                        'type': 'datetime' if col['field'] == '@timestamp' else 'string',
+                        'friendly_name': col['field']
+                    } for col in row if col['field'] != '@ptr']
+                rows.append({col['field']: col['value'] for col in row if col['field'] != '@ptr'})
+            return response.json({'columns': cols, 'rows': rows})
         if elapsed > TIMEOUT:
             raise Exception('timeout')
         await asyncio.sleep(POLL_INTERVAL)
