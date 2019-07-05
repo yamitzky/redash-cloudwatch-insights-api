@@ -42,16 +42,24 @@ async def query(request):
         result = cloudwatch.get_query_results(queryId=query_id)
         if result['status'] == 'Complete':
             results = result['results']
-            cols = []
             rows = []
-            for i, row in enumerate(results):
-                if i == 0:  # get columns from 1st row
-                    cols = [{
-                        'name': col['field'],
-                        'type': 'datetime' if col['field'] == '@timestamp' else 'string',
-                        'friendly_name': col['field']
-                    } for col in row if col['field'] != '@ptr']
-                rows.append({col['field']: col['value'] for col in row if col['field'] != '@ptr'})
+            field_orders = {}
+            for row in results:
+                record = {}
+                rows.append(record)
+                for order, col in enumerate(row):
+                    if col['field'] == '@ptr':
+                        continue
+                    field = col['field']
+                    record[field] = col['value']
+                    # true order is largest one
+                    field_orders[field] = max(field_orders.get(field, -1), order)
+            fields = sorted(field_orders, key=lambda f: field_orders[f])
+            cols = [{
+                'name': f,
+                'type': 'datetime' if f == '@timestamp' else 'string',
+                'friendly_name': f
+            } for f in fields]
             return response.json({'columns': cols, 'rows': rows})
         if elapsed > TIMEOUT:
             raise Exception('timeout')
